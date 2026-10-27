@@ -11,7 +11,8 @@ CHAT_ID = os.getenv("CHAT_ID")
 TEMAS_DE_INTERES = [
     "Gobierno Regional Los Lagos",
     "GORE Los Lagos",
-    "Gobierno Regional",
+    "Gobierno Regional Los Lagos",
+    "GORE",
 ]
 
 ARCHIVO_HISTORIAL = "historial.txt"
