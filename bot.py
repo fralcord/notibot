@@ -15,7 +15,7 @@ TEMAS_DE_INTERES = [
     "GORE de Los Lagos",
     "Consejo Regional de Los Lagos",
     "CORE Los Lagos",
-    "FNDR",    
+    "FNDR Los Lagos",    
 ]
 
 ARCHIVO_HISTORIAL = "historial.txt"
