@@ -4,15 +4,16 @@ import xml.etree.ElementTree as ET
 import requests
 
 # ================= CONFIGURACIÓN =================
-# Las claves ahora se leen desde las variables de entorno de GitHub Secrets
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
+# Modifica o agrega los términos específicos de tu región
 TEMAS_DE_INTERES = [
-    "Inteligencia Artificial",
-    "Ciberseguridad",
-    "Criptomonedas",
+    "Gobierno Regional Los Lagos",
+    "GORE Los Lagos",
+    "Gobierno Regional",
 ]
+
 ARCHIVO_HISTORIAL = "historial.txt"
 # =================================================
 
@@ -44,15 +45,19 @@ def enviar_telegram(mensaje):
     }
     try:
         response = requests.post(url, json=payload, timeout=10)
-        return response.status_code == 200
+        if response.status_code != 200:
+            print(f"[ERROR Telegram] Código: {response.status_code} - Respuesta: {response.text}")
+            return False
+        return True
     except requests.RequestException as e:
         print(f"[ERROR] Conexión con Telegram: {e}")
         return False
 
 def buscar_noticias_rss(tema, historial):
-    """Consulta el feed RSS y filtra las que ya están en el historial."""
+    """Consulta el feed RSS enfocado en Chile (gl=CL) y filtra repetidas."""
     tema_enc = urllib.parse.quote(tema)
-    url_rss = f"https://news.google.com/rss/search?q={tema_enc}&hl=es-419&gl=US&ceid=US:es-419"
+    # gl=CL y ceid=CL:es-419 filtran resultados para Chile
+    url_rss = f"https://news.google.com/rss/search?q={tema_enc}&hl=es-419&gl=CL&ceid=CL:es-419"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
     }
@@ -63,12 +68,13 @@ def buscar_noticias_rss(tema, historial):
     try:
         respuesta = requests.get(url_rss, headers=headers, timeout=10)
         if respuesta.status_code != 200:
+            print(f"[AVISO] Código HTTP {respuesta.status_code} al consultar: {tema}")
             return nuevas_noticias, nuevos_ids
 
         raiz = ET.fromstring(respuesta.content)
         
-        # Revisamos las 5 más recientes
-        for item in raiz.findall(".//item")[:5]:
+        # Filtra las 4 más recientes por tema
+        for item in raiz.findall(".//item")[:4]:
             titulo = item.find("title").text if item.find("title") is not None else "Sin título"
             link = item.find("link").text if item.find("link") is not None else ""
             guid = item.find("guid").text if item.find("guid") is not None else link
@@ -84,7 +90,7 @@ def buscar_noticias_rss(tema, historial):
         return [], []
 
 def main():
-    print("Iniciando revisión para GitHub Actions...")
+    print("Iniciando revisión de noticias regionales...")
     historial = cargar_historial()
     ids_a_guardar = []
 
@@ -94,18 +100,20 @@ def main():
         
         if noticias:
             ids_a_guardar.extend(nuevos_ids)
-            mensaje = f"🚨 *NOVEDADES: {tema.upper()}*\n\n"
+            mensaje = f"🏛️ *NOVEDADES: {tema.upper()}*\n\n"
             for item in noticias:
                 titulo_limpio = item["titulo"].rsplit(" - ", 1)[0]
                 mensaje += f"🔹 {titulo_limpio}\n🔗 [Leer nota]({item['enlace']})\n\n"
             
-            enviar_telegram(mensaje)
+            enviado = enviar_telegram(mensaje)
+            if enviado:
+                print(f"Mensaje enviado con éxito para: {tema}")
         else:
-            print(f"Sin novedades para {tema}.")
+            print(f"Sin novedades nuevas para: {tema}")
 
     if ids_a_guardar:
         guardar_historial(ids_a_guardar)
-        print(f"Se guardaron {len(ids_a_guardar)} noticias nuevas en el historial.")
+        print(f"Se guardaron {len(ids_a_guardar)} noticias en historial.txt.")
 
 if __name__ == "__main__":
     main()
